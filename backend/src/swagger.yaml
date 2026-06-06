@@ -1,0 +1,277 @@
+openapi: 3.0.3
+info:
+  title: Meeting Intelligence Service
+  version: 1.0.0
+  description: Authenticated meeting storage, grounded AI analysis, action items, and reminders.
+servers:
+  - url: http://localhost:8000
+    description: Local server
+tags:
+  - name: Authentication
+  - name: Meetings
+  - name: Action Items
+  - name: System
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Citation:
+      type: object
+      required: [timestamp]
+      properties:
+        timestamp: { type: string, example: "00:20" }
+        speaker: { type: string, example: Alice }
+    Transcript:
+      type: object
+      required: [timestamp, speaker, text]
+      properties:
+        timestamp: { type: string, example: "00:20" }
+        speaker: { type: string, example: Alice }
+        text: { type: string, example: I will prepare release notes. }
+    Participant:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string }
+        email: { type: string, format: email }
+        userId: { type: string, format: uuid }
+    AuthTokens:
+      type: object
+      properties:
+        accessToken: { type: string }
+        refreshToken: { type: string }
+    Error:
+      type: object
+      properties:
+        traceId: { type: string }
+        success: { type: boolean, example: false }
+        error:
+          type: object
+          properties:
+            code: { type: string }
+            message: { type: string }
+    ActionItemInput:
+      type: object
+      required: [task, meetingId]
+      properties:
+        task: { type: string }
+        meetingId: { type: string, format: uuid }
+        assignee: { type: string, example: Alice }
+        assigneeId: { type: string, format: uuid }
+        dueDate: { type: string, format: date-time }
+  responses:
+    Unauthorized:
+      description: Missing or invalid access token
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+security:
+  - bearerAuth: []
+paths:
+  /health:
+    get:
+      security: []
+      tags: [System]
+      summary: Health check
+      responses:
+        '200': { description: Service is up }
+  /api/evaluation:
+    get:
+      security: []
+      tags: [System]
+      summary: Assignment evaluation metadata
+      responses:
+        '200': { description: Evaluation metadata }
+  /api/auth/register:
+    post:
+      security: []
+      tags: [Authentication]
+      summary: Register a user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string, minLength: 8 }
+      responses:
+        '201': { description: User registered }
+        '400': { description: Invalid input }
+        '409': { description: Email already registered }
+  /api/auth/login:
+    post:
+      security: []
+      tags: [Authentication]
+      summary: Log in
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string }
+      responses:
+        '200': { description: Authentication tokens }
+        '401': { description: Invalid credentials }
+  /api/auth/refresh:
+    post:
+      security: []
+      tags: [Authentication]
+      summary: Refresh access and refresh tokens
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties:
+                refreshToken: { type: string }
+      responses:
+        '200': { description: Refreshed tokens }
+        '401': { description: Invalid refresh token }
+  /api/auth/me:
+    get:
+      tags: [Authentication]
+      summary: Get the authenticated user
+      responses:
+        '200': { description: Current user }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/meetings:
+    post:
+      tags: [Meetings]
+      summary: Create a meeting
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title, meetingDate]
+              properties:
+                title: { type: string }
+                meetingDate: { type: string, format: date-time }
+                duration: { type: integer }
+                participants:
+                  type: array
+                  items:
+                    oneOf:
+                      - { type: string, format: email }
+                      - { $ref: '#/components/schemas/Participant' }
+                transcript:
+                  type: array
+                  items: { $ref: '#/components/schemas/Transcript' }
+      responses:
+        '201': { description: Meeting created }
+        '400': { description: Invalid input }
+    get:
+      tags: [Meetings]
+      summary: List owned meetings
+      parameters:
+        - { in: query, name: page, schema: { type: integer, minimum: 1 } }
+        - { in: query, name: limit, schema: { type: integer, minimum: 1 } }
+        - { in: query, name: search, schema: { type: string } }
+        - { in: query, name: sortBy, schema: { type: string, enum: [date, createdAt, title] } }
+        - { in: query, name: sortOrder, schema: { type: string, enum: [asc, desc] } }
+      responses:
+        '200': { description: Paginated meetings }
+  /api/meetings/{id}:
+    parameters:
+      - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Meetings]
+      summary: Get an owned meeting
+      responses:
+        '200': { description: Meeting }
+        '404': { description: Meeting not found }
+    patch:
+      tags: [Meetings]
+      summary: Update an owned meeting
+      responses:
+        '200': { description: Meeting updated }
+    delete:
+      tags: [Meetings]
+      summary: Delete an owned meeting
+      responses:
+        '200': { description: Meeting deleted }
+  /api/meetings/{id}/analyze:
+    post:
+      tags: [Meetings]
+      summary: Generate grounded AI analysis and action items
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200': { description: Analysis generated }
+        '400': { description: Meeting has no transcript }
+        '502': { description: AI output failed grounding validation }
+  /api/meetings/{id}/analysis:
+    get:
+      tags: [Meetings]
+      summary: Get saved analysis and extracted action items
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200': { description: Saved analysis }
+  /api/action-items:
+    post:
+      tags: [Action Items]
+      summary: Create an action item for an owned meeting
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ActionItemInput' }
+      responses:
+        '201': { description: Action item created }
+    get:
+      tags: [Action Items]
+      summary: List action items for owned meetings
+      parameters:
+        - { in: query, name: status, schema: { type: string, enum: [PENDING, IN_PROGRESS, COMPLETED] } }
+        - { in: query, name: assignee, schema: { type: string } }
+        - { in: query, name: assigneeId, schema: { type: string, format: uuid } }
+        - { in: query, name: meetingId, schema: { type: string, format: uuid } }
+      responses:
+        '200': { description: Action items }
+  /api/action-items/overdue:
+    get:
+      tags: [Action Items]
+      summary: List overdue action items for owned meetings
+      responses:
+        '200': { description: Overdue action items }
+  /api/action-items/{id}/status:
+    patch:
+      tags: [Action Items]
+      summary: Update status on an owned action item
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { type: string, enum: [PENDING, IN_PROGRESS, COMPLETED] }
+      responses:
+        '200': { description: Status updated }
+        '404': { description: Action item not found }
+  /api/action-items/{id}:
+    delete:
+      tags: [Action Items]
+      summary: Delete an owned action item
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200': { description: Action item deleted }
+        '404': { description: Action item not found }

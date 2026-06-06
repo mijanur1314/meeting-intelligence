@@ -1,0 +1,58 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f6f2eb;
+  --foreground: #1f2933;
+  --card: #fffaf2;
+  --card-foreground: #1f2933;
+  --muted: #ebe3d6;
+  --muted-foreground: #68717d;
+  --border: #ded3c2;
+  --primary: #28515f;
+  --primary-foreground: #fffaf2;
+  --accent: #c46a45;
+  --accent-foreground: #fffaf2;
+}
+
+.dark {
+  --background: #0f1214;
+  --foreground: #ecefec;
+  --card: #15191c;
+  --card-foreground: #ecefec;
+  --muted: #1e2429;
+  --muted-foreground: #8a99a8;
+  --border: #2a343b;
+  --primary: #4db8d8;
+  --primary-foreground: #0f1214;
+  --accent: #eb8153;
+  --accent-foreground: #0f1214;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+}
+
+* {
+  border-color: var(--border);
+}
+
+::selection {
+  background: rgba(40, 81, 95, 0.18);
+}

@@ -1,0 +1,121 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum ActionItemStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  role      Role     @default(USER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  meetings      Meeting[]      @relation("MeetingOwner")
+  participants  Participant[]
+  actionItems   ActionItem[]   @relation("ActionItemAssignee")
+}
+
+model Meeting {
+  id          String   @id @default(uuid())
+  title       String
+  date        DateTime
+  duration    Int?     // in minutes
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  ownerId     String
+  owner       User     @relation("MeetingOwner", fields: [ownerId], references: [id])
+
+  participants Participant[]
+  transcripts  Transcript[]
+  analysis     Analysis?
+  actionItems  ActionItem[]
+
+  @@index([ownerId, createdAt])
+}
+
+model Participant {
+  id        String   @id @default(uuid())
+  name      String
+  email     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+
+  meetingId String
+  meeting   Meeting  @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+}
+
+model Transcript {
+  id        String   @id @default(uuid())
+  timestamp String
+  speaker   String
+  text      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  meetingId String
+  meeting   Meeting  @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+}
+
+model Analysis {
+  id        String   @id @default(uuid())
+  summary   Json     // Array of objects with text and citations
+  decisions Json     // Array of objects with text and citations
+  followUps Json     // Array of objects with text and citations
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  meetingId String   @unique
+  meeting   Meeting  @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+}
+
+model ActionItem {
+  id          String   @id @default(uuid())
+  task        String
+  assigneeName String?
+  dueDate     DateTime?
+  status      ActionItemStatus @default(PENDING)
+  citations   Json?    // Array of objects with timestamp and speaker
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  assigneeId  String?
+  assignee    User?    @relation("ActionItemAssignee", fields: [assigneeId], references: [id])
+
+  meetingId   String
+  meeting     Meeting  @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+
+  reminders   ReminderHistory[]
+
+  @@index([meetingId, status])
+  @@index([status, dueDate])
+}
+
+model ReminderHistory {
+  id           String   @id @default(uuid())
+  sentAt       DateTime @default(now())
+  status       String   // "SUCCESS", "FAILED"
+  errorMessage String?
+
+  actionItemId String
+  actionItem   ActionItem @relation(fields: [actionItemId], references: [id], onDelete: Cascade)
+}
