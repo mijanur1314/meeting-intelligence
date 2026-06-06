@@ -2,12 +2,49 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import api from "@/lib/axios";
 
 export default function Dashboard() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [stats, setStats] = useState({
+    meetings: 0,
+    actionItems: 0,
+    pending: 0,
+    overdue: 0
+  });
+  const [recentAction, setRecentAction] = useState<any>(null);
 
   useEffect(() => {
-    setIsAuthenticated(!!localStorage.getItem('accessToken'));
+    const token = localStorage.getItem('accessToken');
+    setIsAuthenticated(!!token);
+
+    if (token) {
+      Promise.all([
+        api.get('/meetings'),
+        api.get('/action-items')
+      ]).then(([meetingsRes, actionItemsRes]) => {
+        const meetingsData = meetingsRes.data.data;
+        const actionItemsData = actionItemsRes.data.data.items || [];
+        
+        const meetingsCount = meetingsData.pagination ? meetingsData.pagination.total : meetingsData.items.length;
+        const pendingCount = actionItemsData.filter((i: any) => i.status === 'PENDING').length;
+        const overdueCount = actionItemsData.filter((i: any) => {
+          if (i.status !== 'PENDING' || !i.dueDate) return false;
+          return new Date(i.dueDate) < new Date();
+        }).length;
+
+        setStats({
+          meetings: meetingsCount,
+          actionItems: actionItemsData.length,
+          pending: pendingCount,
+          overdue: overdueCount
+        });
+
+        if (actionItemsData.length > 0) {
+          setRecentAction(actionItemsData[0]);
+        }
+      }).catch(console.error);
+    }
   }, []);
 
   if (!isAuthenticated) {
@@ -90,10 +127,10 @@ export default function Dashboard() {
 
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
           {[
-            { title: 'Meetings reviewed', val: '12', note: '3 this week' },
-            { title: 'Action items', val: '36', note: 'Across all meetings' },
-            { title: 'Pending', val: '23', note: 'Need an owner or date' },
-            { title: 'Overdue', val: '0', note: 'Nothing slipping today' }
+            { title: 'Meetings reviewed', val: stats.meetings.toString(), note: 'All time' },
+            { title: 'Action items', val: stats.actionItems.toString(), note: 'Across all meetings' },
+            { title: 'Pending', val: stats.pending.toString(), note: 'Open tasks' },
+            { title: 'Overdue', val: stats.overdue.toString(), note: 'Past due date' }
           ].map((stat, i) => (
             <div key={i} className="rounded-3xl border bg-card p-6 shadow-sm">
               <h3 className="text-sm font-medium text-muted-foreground">{stat.title}</h3>
@@ -109,20 +146,27 @@ export default function Dashboard() {
             <Link href="/meetings" className="text-sm font-semibold text-primary hover:text-primary/80">View meetings</Link>
           </div>
 
-          <div className="rounded-3xl border bg-card p-6 shadow-sm">
-            <div className="rounded-2xl border bg-background p-5">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                  <p className="text-sm font-semibold text-primary">Action item</p>
-                  <p className="mt-2 text-lg font-medium">Launch handoff needs support coverage by Thursday.</p>
+          {recentAction && (
+            <div className="rounded-3xl border bg-card p-6 shadow-sm">
+              <div className="rounded-2xl border bg-background p-5">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-primary">Action item</p>
+                    <p className="mt-2 text-lg font-medium">{recentAction.task}</p>
+                  </div>
+                  <span className="rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
+                    {recentAction.status}
+                  </span>
                 </div>
-                <span className="rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">Just now</span>
-              </div>
-              <div className="mt-5 rounded-2xl bg-card p-4 text-sm leading-6 text-muted-foreground ring-1 ring-border">
-                <span className="font-semibold text-foreground">Citation:</span> &quot;Let&apos;s launch this feature next Friday.&quot; <span className="ml-2 font-mono text-xs">00:10 - Alice</span>
+                {recentAction.citations && recentAction.citations.length > 0 && (
+                  <div className="mt-5 rounded-2xl bg-card p-4 text-sm leading-6 text-muted-foreground ring-1 ring-border">
+                    <span className="font-semibold text-foreground">Citation:</span> 
+                    <span className="ml-2 font-mono text-xs">{recentAction.citations[0].timestamp} - {recentAction.citations[0].speaker}</span>
+                  </div>
+                )}
               </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>
