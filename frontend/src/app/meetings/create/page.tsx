@@ -11,6 +11,30 @@ export default function CreateMeetingPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const router = useRouter()
 
+  const parseTranscript = (text: string) => {
+    const lines = text.split('\n').filter(l => l.trim() !== '')
+    const segments = []
+    const regex = /^\[([\d:]+)\]\s+([^:]+):\s+(.*)$/
+    
+    for (const line of lines) {
+      const match = line.match(regex)
+      if (match) {
+        segments.push({
+          timestamp: match[1],
+          speaker: match[2].trim(),
+          text: match[3].trim()
+        })
+      } else {
+        segments.push({
+          timestamp: "00:00",
+          speaker: "Unknown",
+          text: line.trim()
+        })
+      }
+    }
+    return segments.length > 0 ? segments : [{ timestamp: "00:00", speaker: "System", text }]
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSubmitting(true)
@@ -18,9 +42,7 @@ export default function CreateMeetingPage() {
       const res = await api.post('/meetings', {
         title,
         date: new Date(date).toISOString(),
-        transcripts: [
-          { speaker: "Speaker 1", text: transcript, timestamp: "00:00" }
-        ],
+        transcripts: parseTranscript(transcript),
         participants: []
       })
       router.push(`/meetings/${res.data.data.id}`)
