@@ -2,8 +2,8 @@
 
 ## Core Requirements
 
-- [ ] Public GitHub repository submitted
-- [ ] Application deployed and accessible publicly
+- [x] Public GitHub repository submitted
+- [x] Application deployed and accessible publicly
 - [x] README contains basic setup and run instructions
 - [x] Authentication implemented
 - [x] Database models designed
@@ -24,13 +24,13 @@
 - [x] Input validation implemented for action items
 - [x] Complete OpenAPI documentation provided
 - [x] Health endpoint implemented
-- [ ] Evaluation endpoint contains final repository, deployment, and email values
+- [x] Evaluation endpoint contains final repository, deployment, and email values
 - [x] Focused unit and integration tests implemented
 
 ## Bonus Milestones
 
 - [x] Docker support
-- [ ] CI/CD pipeline
+- [x] CI/CD pipeline
 - [ ] Redis caching
 - [x] Rate limiting
 - [x] Basic authentication integration tests
