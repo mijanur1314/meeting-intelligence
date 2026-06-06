@@ -11,6 +11,21 @@ jobs:
     name: Build & Test
     runs-on: ubuntu-latest
     
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: admin
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: meeting_intelligence
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
     - uses: actions/checkout@v4
     
@@ -27,9 +42,19 @@ jobs:
       run: npx prisma generate
       working-directory: ./backend
       
+    - name: Run Database Migrations
+      run: npx prisma migrate deploy
+      working-directory: ./backend
+      env:
+        DATABASE_URL: postgresql://admin:password@localhost:5432/meeting_intelligence?schema=public
+      
     - name: Run Backend Tests
       run: npm run test
       working-directory: ./backend
+      env:
+        DATABASE_URL: postgresql://admin:password@localhost:5432/meeting_intelligence?schema=public
+        JWT_SECRET: supersecret
+        JWT_REFRESH_SECRET: supersecret
 
     - name: Build Backend
       run: npm run build:backend
