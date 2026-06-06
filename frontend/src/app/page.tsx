@@ -4,6 +4,14 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import api from "@/lib/axios";
 
+interface ActionItem {
+  id: string;
+  task: string;
+  status: string;
+  dueDate?: string;
+  citations?: { timestamp: string; speaker: string; }[];
+}
+
 export default function Dashboard() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [stats, setStats] = useState({
@@ -12,7 +20,7 @@ export default function Dashboard() {
     pending: 0,
     overdue: 0
   });
-  const [recentAction, setRecentAction] = useState<any>(null);
+  const [recentAction, setRecentAction] = useState<ActionItem | null>(null);
 
   useEffect(() => {
     const token = localStorage.getItem('accessToken');
@@ -27,8 +35,8 @@ export default function Dashboard() {
         const actionItemsData = actionItemsRes.data.data.items || [];
         
         const meetingsCount = meetingsData.pagination ? meetingsData.pagination.total : meetingsData.items.length;
-        const pendingCount = actionItemsData.filter((i: any) => i.status === 'PENDING').length;
-        const overdueCount = actionItemsData.filter((i: any) => {
+        const pendingCount = actionItemsData.filter((i: ActionItem) => i.status === 'PENDING').length;
+        const overdueCount = actionItemsData.filter((i: ActionItem) => {
           if (i.status !== 'PENDING' || !i.dueDate) return false;
           return new Date(i.dueDate) < new Date();
         }).length;
