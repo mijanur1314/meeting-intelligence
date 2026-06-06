@@ -132,8 +132,12 @@ export class AIService {
       const text = response.response.text();
       if (!text) throw new Error('Empty response from AI');
 
-      return validateAnalysisResult(JSON.parse(text), transcripts);
+      // Strip markdown code blocks if the AI accidentally wrapped the JSON
+      const cleanText = text.replace(/^```json\n?/g, '').replace(/\n?```$/g, '').trim();
+
+      return validateAnalysisResult(JSON.parse(cleanText), transcripts);
     } catch (error: any) {
+      console.error("[AI Service Error]", error);
       if (error instanceof AppError) {
         throw error;
       }
